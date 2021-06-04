@@ -6,3 +6,5 @@ Snakes, and an introduction to recursive backtracking, pages 50-55, by Andrew Gi
 Source Code: Recreate Exerion's pseudo-3D landscape, pages 64-65, by Mark Vanstone
 
 The code examples are licenced under Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported.
+
+[Run the JavaScript port of Source Code in your browser.](https://thisarray.github.io/Wireframe-51/exerion-source-code/exerion.html)
