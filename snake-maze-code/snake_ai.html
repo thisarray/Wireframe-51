@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>snake_ai</title>
+  <script src="../../jsgame0.js"></script>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+.hidden {
+  display: none;
+}
+#original {
+  margin-left: 1em;
+}
+  </style>
+</head>
+
+<body>
+<section id="imageLoader" class="hidden">
+  <img class="hidden" src="images/gridblock.png" alt="gridblock" data-name="gridblock">
+  <img class="hidden" src="images/snakebody2.png" alt="snakebody2" data-name="snakebody2">
+  <img class="hidden" src="images/snakehead.png" alt="snakehead" data-name="snakehead">
+  <img class="hidden" src="images/wall.png" alt="wall" data-name="wall">
+</section>
+
+<main>
+<h1>snake_ai</h1>
+
+<canvas id="screen">
+The game screen appears here if your browser supports the Canvas API.
+</canvas>
+<section id="controls">
+  <button type="button" id="reset">Reset</button>
+  <button type="button" id="pause">Pause</button>
+</section>
+
+<h2>Attribution</h2>
+
+<p><a href="https://wireframe.raspberrypi.org/issues/51">Snakes, and an introduction to recursive backtracking, pages 50-55, by Andrew Gillett</a>.</p>
+
+<p>Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode">Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported</a>.</p>
+
+<h2>Original Python code</h2>
+
+<pre id="original"><code>
+import pgzrun
+from random import randint
+
+# It doesn&#x27;t eat up the last two walls because it takes paths which COULD lead to eating those walls, but it can
+# put it off indefinitely? esp with high max depth?
+
+WIDTH,HEIGHT = 1200,704
+
+MAX_DEPTH = 20
+
+TILE_SPRITES = {&#x27;X&#x27;: &#x27;gridblock&#x27;, &#x27;.&#x27;: &#x27;wall&#x27;}
+
+# GRID = [&#x27;XXXXX&#x27;,
+#         &#x27;X.X.X&#x27;,
+#         &#x27;X.  X&#x27;,
+#         &#x27;X X.X&#x27;,
+#         &#x27;XXXXX&#x27;]
+
+GRID = [&#x27;XXXXXXXXXXXXXXXXXXX&#x27;,
+        &#x27;X..  .    ..      X&#x27;,
+        &#x27;X.X X.X X X X X X X&#x27;,
+        &#x27;X .. ..  . ..     X&#x27;,
+        &#x27;X X X X X X X X X X&#x27;,
+        &#x27;X  .  .   .  .    X&#x27;,
+        &#x27;X X X X X X X X X X&#x27;,
+        &#x27;X...  .   .       X&#x27;,
+        &#x27;X X X X X X X X X X&#x27;,
+        &#x27;X  .   . ..    .  X&#x27;,
+        &#x27;XXXXXXXXXXXXXXXXXXX&#x27;]
+
+# GRID = [&#x27;XXXXXXXXXXXXXXX&#x27;,
+#         &#x27;X.............X&#x27;,
+#         &#x27;X.X X.X X X X X&#x27;,
+#         &#x27;X.....   .....X&#x27;,
+#         &#x27;X X X X X X X X&#x27;,
+#         &#x27;X ...     ... X&#x27;,
+#         &#x27;X X X X X X X X&#x27;,
+#         &#x27;X...  .   ... X&#x27;,
+#         &#x27;X X X X X X X X&#x27;,
+#         &#x27;X  .   .   .  X&#x27;,
+#         &#x27;XXXXXXXXXXXXXXX&#x27;]
+
+GRID_SQ_SIZE = 64
+
+DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+def snake_step_score(score, depth, snake):
+    head_pos = snake[0]
+    square = GRID[head_pos[1]][head_pos[0]]
+
+    # Get shorter if this square is an empty space
+    if square == &#x27; &#x27;:
+        snake = snake[:-1]
+
+    # Are we hitting either an impassable wall or part of our own tail? (Exclude head)
+    if square == &#x27;X&#x27; or head_pos in snake[1:]:
+        return score/100
+    elif square == &#x27;.&#x27;:
+        score += 2  # Possible flaw: simulated snake could eat from this square multiple times
+    else:
+        score += 1
+
+    if depth &lt;= 1:
+        return score
+
+    best_score = 0
+
+    # Check each direction
+    for dir in DIRECTIONS:
+        new_head_pos = (head_pos[0]+dir[0], head_pos[1]+dir[1])
+        result = snake_step_score(score, depth-1, [new_head_pos] + snake)
+        best_score = max(result, best_score)
+
+    return best_score
+
+snake = [(1,1)]
+
+def change_grid_pos(row,col,char):
+    # Replace a character in the grid. Strings in Python are immutable (i.e.
+    # can&#x27;t be changed) so we have to replace the whole row with a new row
+    # which is the same as the old row but with that one character changed
+    grid_row = GRID[row]
+    new_row = grid_row[:col] + char + grid_row[col + 1:]
+    GRID[row] = new_row
+
+def update_snake():
+    global snake
+    head_pos = snake[0]
+    best_score = 0
+    best_snake = None
+    new_pos_eats_wall = False
+    for dir in DIRECTIONS:
+        new_head_pos = (head_pos[0] + dir[0], head_pos[1] + dir[1])
+        new_snake = [new_head_pos] + snake
+        result = snake_step_score(0, MAX_DEPTH, new_snake)
+        if result &gt; best_score:
+            best_score = result
+            best_snake = new_snake
+            new_pos_eats_wall = GRID[new_head_pos[1]][new_head_pos[0]] == &#x27;.&#x27;
+
+    if best_snake != None:
+        snake = best_snake
+        if not new_pos_eats_wall:
+            snake = snake[:-1]  # Remove last tail piece
+        else:
+            new_head_pos = snake[0]
+            change_grid_pos(new_head_pos[1], new_head_pos[0], &#x27; &#x27;)
+
+def update():
+    # Update snake
+    update_snake()
+
+    # 1/20 chance each update of adding a new edible wall (which might replace
+    # an inedible wall)
+    if randint(0,19) == 0:
+        change_grid_pos(randint(1,len(GRID)-2), randint(1,len(GRID[0])-2), &#x27;.&#x27;)
+
+def draw():
+    screen.clear()
+
+    for row_index in range(len(GRID)):
+        for column_index in range(len(GRID[row_index])):
+            # Get the character at this grid position
+            square = GRID[row_index][column_index]
+            if square in TILE_SPRITES:
+                x, y = column_index * GRID_SQ_SIZE, row_index * GRID_SQ_SIZE
+                screen.blit(TILE_SPRITES[square], (x, y))
+            pos = (column_index, row_index)
+            if pos in snake:
+                image = &#x27;snakehead&#x27; if pos == snake[0] else &#x27;snakebody2&#x27;
+                screen.blit(image, (column_index * GRID_SQ_SIZE,row_index * GRID_SQ_SIZE))
+
+pgzrun.go()
+</code></pre>
+</main>
+
+<script>
+/*
+ * It doesn't eat up the last two walls because it takes paths which COULD lead to eating those walls, but it can
+ * put it off indefinitely? esp with high max depth?
+ */
+WIDTH = 1200;
+HEIGHT = 704;
+
+const MAX_DEPTH = 20;
+
+const TILE_SPRITES = new Map([['X', 'gridblock'], ['.', 'wall']]);
+
+/*
+const GRID = ['XXXXX',
+              'X.X.X',
+              'X.  X',
+              'X X.X',
+              'XXXXX'];
+*/
+
+const GRID = ['XXXXXXXXXXXXXXXXXXX',
+              'X..  .    ..      X',
+              'X.X X.X X X X X X X',
+              'X .. ..  . ..     X',
+              'X X X X X X X X X X',
+              'X  .  .   .  .    X',
+              'X X X X X X X X X X',
+              'X...  .   .       X',
+              'X X X X X X X X X X',
+              'X  .   . ..    .  X',
+              'XXXXXXXXXXXXXXXXXXX'];
+
+/*
+const GRID = ['XXXXXXXXXXXXXXX',
+              'X.............X',
+              'X.X X.X X X X X',
+              'X.....   .....X',
+              'X X X X X X X X',
+              'X ...     ... X',
+              'X X X X X X X X',
+              'X...  .   ... X',
+              'X X X X X X X X',
+              'X  .   .   .  X',
+              'XXXXXXXXXXXXXXX'];
+*/
+
+const GRID_SQ_SIZE = 64;
+
+const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+function snake_step_score(score, depth, snake) {
+  let head_pos = snake[0],
+      square = GRID[head_pos[1]][head_pos[0]],
+      best_score = 0;
+
+  // Get shorter if this square is an empty space
+  if (square === ' ') {
+    snake = snake.slice(0, -1);
+  }
+
+  // Are we hitting either an impassable wall or part of our own tail? (Exclude head)
+  if ((square === 'X') || (snake.slice(1).filter(s => ((s[0] === head_pos[0]) && (s[1] === head_pos[1]))).length > 0)) {
+    return score / 100;
+  }
+  else if (square === '.') {
+    score += 2;  // Possible flaw: simulated snake could eat from this square multiple times
+  }
+  else {
+    score += 1;
+  }
+
+  if (depth <= 1) {
+    return score;
+  }
+
+  // Check each direction
+  for (let dir of DIRECTIONS) {
+    let new_head_pos = [head_pos[0] + dir[0], head_pos[1] + dir[1]],
+        newSnake = snake.slice();
+    newSnake.unshift(new_head_pos);
+    best_score = Math.max(snake_step_score(score, depth - 1, newSnake), best_score);
+  }
+
+  return best_score;
+}
+
+/*
+ * Replace a character in the grid. Strings in Python are immutable (i.e.
+ * can't be changed) so we have to replace the whole row with a new row
+ * which is the same as the old row but with that one character changed
+ */
+function change_grid_pos(row, col, char) {
+  let grid_row = GRID[row];
+  GRID[row] = grid_row.substring(0, col) + char + grid_row.substring(col + 1);
+}
+
+function update_snake() {
+  let head_pos = snake[0],
+      best_score = 0,
+      best_snake = null,
+      new_pos_eats_wall = false,
+      new_head_pos, new_snake, result;
+  for (let dir of DIRECTIONS) {
+    new_head_pos = [head_pos[0] + dir[0], head_pos[1] + dir[1]];
+    new_snake = snake.slice();
+    new_snake.unshift(new_head_pos);
+    result = snake_step_score(0, MAX_DEPTH, new_snake);
+    if (result > best_score) {
+      best_score = result;
+      best_snake = new_snake;
+      new_pos_eats_wall = GRID[new_head_pos[1]][new_head_pos[0]] === '.';
+    }
+  }
+
+  if (best_snake != null) {
+    snake = best_snake;
+    if (!new_pos_eats_wall) {
+      snake = snake.slice(0, -1);  // Remove last tail piece
+    }
+    else {
+      new_head_pos = snake[0];
+      change_grid_pos(new_head_pos[1], new_head_pos[0], ' ');
+    }
+  }
+}
+
+/*
+ * Return a random integer N such that min <= N < max.
+ */
+function getRandomInteger(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor((Math.random() * (max - min)) + min);
+}
+
+function update() {
+  // Update snake
+  update_snake();
+
+  // 1/20 chance each update of adding a new edible wall (which might replace
+  // an inedible wall)
+  if (getRandomInteger(0, 20) === 0) {
+    change_grid_pos(getRandomInteger(1, GRID.length - 1), getRandomInteger(1, GRID[0].length - 1), '.');
+  }
+}
+
+function draw() {
+  screen.clear();
+
+  for (let row_index = 0; row_index < GRID.length; row_index++) {
+    for (let column_index = 0; column_index < GRID[row_index].length; column_index++) {
+      // Get the character at this grid position
+      let square = GRID[row_index][column_index],
+          x = column_index * GRID_SQ_SIZE,
+          y = row_index * GRID_SQ_SIZE;
+      if (TILE_SPRITES.has(square)) {
+        screen.blit(TILE_SPRITES.get(square), [x, y]);
+      }
+      if (snake.filter(s => ((s[0] === column_index) && (s[1] === row_index))).length > 0) {
+        if ((snake[0][0] === column_index) && (snake[0][1] === row_index)) {
+          screen.blit('snakehead', [x, y]);
+        }
+        else {
+          screen.blit('snakebody2', [x, y]);
+        }
+      }
+    }
+  }
+}
+
+var snake;
+
+function reset() {
+  snake = [[1, 1]];
+}
+
+window.addEventListener('load', (event) => {
+  images.LOAD('#imageLoader img');
+  reset();
+  screen.set_mode('#screen', '#reset', '#pause');
+});
+</script>
+</body>
+
+</html>
