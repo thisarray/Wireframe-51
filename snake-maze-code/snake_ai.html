@@ -245,7 +245,7 @@ function snake_step_score(score, depth, snake) {
   }
 
   // Are we hitting either an impassable wall or part of our own tail? (Exclude head)
-  if ((square === 'X') || (snake.slice(1).filter(s => ((s[0] === head_pos[0]) && (s[1] === head_pos[1]))).length > 0)) {
+  if ((square === 'X') || (snake.slice(1).some(s => ((s[0] === head_pos[0]) && (s[1] === head_pos[1]))))) {
     return score / 100;
   }
   else if (square === '.') {
@@ -342,7 +342,7 @@ function draw() {
       if (TILE_SPRITES.has(square)) {
         screen.blit(TILE_SPRITES.get(square), [x, y]);
       }
-      if (snake.filter(s => ((s[0] === column_index) && (s[1] === row_index))).length > 0) {
+      if (snake.some(s => ((s[0] === column_index) && (s[1] === row_index)))) {
         if ((snake[0][0] === column_index) && (snake[0][1] === row_index)) {
           screen.blit('snakehead', [x, y]);
         }

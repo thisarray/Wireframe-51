@@ -173,7 +173,7 @@ function snake_step_score(score, depth, snake) {
   if (square === ' ') {
     snake = snake.slice(0, -1);
   }
-  if ((square === 'X') || (snake.slice(1).filter(s => ((s[0] === head_pos[0]) && (s[1] === head_pos[1]))).length > 0)) {
+  if ((square === 'X') || (snake.slice(1).some(s => ((s[0] === head_pos[0]) && (s[1] === head_pos[1]))))) {
     return score / 2;
   }
   else if (square === '.') {
@@ -249,7 +249,7 @@ function draw() {
       if (TILE_SPRITES.has(square)) {
         screen.blit(TILE_SPRITES.get(square), [x, y]);
       }
-      if (snake.filter(s => ((s[0] === col) && (s[1] === row))).length > 0) {
+      if (snake.some(s => ((s[0] === col) && (s[1] === row)))) {
         if ((snake[0][0] === col) && (snake[0][1] === row)) {
           screen.blit('snakehead', [x, y]);
         }
